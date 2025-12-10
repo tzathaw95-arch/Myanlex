@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Myanlex | Myanmar Legal Research</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Importing Lora (Serif), Inter (Sans), Noto Sans Myanmar & Padauk (Burmese) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Myanmar:wght@300;400;500;600&family=Padauk:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- PDF.js for client-side PDF parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+      // Configure PDF.js worker
+      if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }
+    </script>
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              slate: {
+                800: '#1E293B', // Secondary Text
+                900: '#0F172A', // Deep Navy (Primary Brand)
+                950: '#020617', // Darker UI elements
+              },
+              gold: {
+                100: '#FBF5D5',
+                200: '#F4E6AA',
+                400: '#D4AF37', // Metallic Gold
+                500: '#B8860B', // Dark Goldenrod
+                600: '#9B7208',
+              },
+              paper: '#FDFBF7', // Legal Pad Off-White
+            },
+            fontFamily: {
+              serif: ['Lora', 'Padauk', '"Noto Sans Myanmar"', 'serif'],
+              sans: ['Inter', 'Padauk', '"Noto Sans Myanmar"', 'sans-serif'],
+              myanmar: ['Padauk', '"Noto Sans Myanmar"', '"Myanmar3"', 'sans-serif'],
+            },
+            boxShadow: {
+              'premium': '0 4px 20px -2px rgba(0, 0, 0, 0.1), 0 2px 10px -2px rgba(0, 0, 0, 0.05)',
+              'premium-hover': '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      body {
+        background-color: #FDFBF7; /* Paper color */
+        color: #1E293B;
+        font-family: 'Inter', 'Padauk', 'Noto Sans Myanmar', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      
+      /* Typography Refinements */
+      h1, h2, h3, h4, h5, h6 {
+        font-family: 'Lora', 'Padauk', serif;
+        letter-spacing: -0.01em;
+      }
+      
+      /* Custom Scrollbar for a cleaner look */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f1f1; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1; 
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8; 
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.32.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
+    "react-markdown": "https://aistudiocdn.com/react-markdown@^10.1.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
