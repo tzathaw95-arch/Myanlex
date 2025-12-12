@@ -56,11 +56,23 @@ const AppContent: React.FC = () => {
 
   // INITIALIZE DATABASE
   useEffect(() => {
+      // Primary Init
       initDatabase().then(() => {
           setIsDbReady(true);
           // Initial load of cases after DB is ready
           setFilteredCases(searchCases(''));
       });
+
+      // Failsafe: Force load after 4 seconds if DB hangs (browser security policy issue etc)
+      const safetyTimer = setTimeout(() => {
+          if (!isDbReady) {
+              console.warn("Force loading App via failsafe timer...");
+              setIsDbReady(true);
+              setFilteredCases(searchCases(''));
+          }
+      }, 4000);
+
+      return () => clearTimeout(safetyTimer);
   }, []);
 
   // Init Session

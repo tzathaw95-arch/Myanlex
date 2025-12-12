@@ -17,8 +17,6 @@ const DB_KEY_DICTIONARY = "myanlex_dictionary";
 const DB_KEY_TEMPLATES = "myanlex_templates";
 
 // --- IN-MEMORY CACHE ---
-// IndexedDB is async, but our UI expects sync data for speed. 
-// We load everything into memory on app start.
 const MEMORY_CACHE: {
     cases: LegalCase[];
     isInitialized: boolean;
@@ -28,8 +26,9 @@ const MEMORY_CACHE: {
 };
 
 // --- SEED DATA ---
+// (Keeping seed data short for brevity in this file update, assuming it's loaded from previous context if not fully replaced. 
+// However, since I must provide the full file content, I will include the full seed data to ensure it exists.)
 
-// 1. CASES
 const SEED_CASES: LegalCase[] = [
   // --- CRIMINAL CASES (12) ---
   {
@@ -414,7 +413,6 @@ const SEED_CASES: LegalCase[] = [
   }
 ];
 
-// 2. USERS
 const SEED_USERS: User[] = [
   {
     id: "admin-1",
@@ -457,7 +455,6 @@ const SEED_USERS: User[] = [
   }
 ];
 
-// 3. ORGS
 const SEED_ORGS: Organization[] = [
   {
     id: "org-1",
@@ -470,7 +467,6 @@ const SEED_ORGS: Organization[] = [
   }
 ];
 
-// 4. CONFIG
 const DEFAULT_CONFIG: BillingConfig = {
   kbz: {
     name: "Myanlex Services",
@@ -491,7 +487,6 @@ const DEFAULT_CONFIG: BillingConfig = {
   ]
 };
 
-// 5. RESOURCES (Statutes, Dict, Templates - Small enough for LocalStorage)
 const SEED_STATUTES: Statute[] = [
   {
     id: "st-1",
@@ -570,15 +565,20 @@ const openDB = (): Promise<IDBDatabase> => {
 };
 
 const idbGetAll = async <T>(storeName: string): Promise<T[]> => {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(storeName, "readonly");
-        const store = transaction.objectStore(storeName);
-        const request = store.getAll();
+    try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(storeName, "readonly");
+            const store = transaction.objectStore(storeName);
+            const request = store.getAll();
 
-        request.onsuccess = () => resolve(request.result as T[]);
-        request.onerror = () => reject(request.error);
-    });
+            request.onsuccess = () => resolve(request.result as T[]);
+            request.onerror = () => reject(request.error);
+        });
+    } catch (e) {
+        console.error("idbGetAll failed", e);
+        return [];
+    }
 };
 
 const idbPut = async <T>(storeName: string, item: T): Promise<void> => {
@@ -590,6 +590,39 @@ const idbPut = async <T>(storeName: string, item: T): Promise<void> => {
 
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
+    });
+};
+
+// Batch put for faster seeding
+const idbBatchPut = async <T>(storeName: string, items: T[]): Promise<void> => {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(storeName, "readwrite");
+        const store = transaction.objectStore(storeName);
+        
+        // Parallel requests in one transaction
+        let completed = 0;
+        let errors = false;
+
+        if (items.length === 0) {
+            resolve();
+            return;
+        }
+
+        items.forEach(item => {
+            const request = store.put(item);
+            request.onsuccess = () => {
+                completed++;
+                if (completed === items.length) resolve();
+            };
+            request.onerror = () => {
+                errors = true;
+                console.error("Batch put error", request.error);
+            };
+        });
+
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = (e) => reject(e);
     });
 };
 
@@ -610,34 +643,48 @@ const idbDelete = async (storeName: string, key: string): Promise<void> => {
 export const initDatabase = async (): Promise<void> => {
     if (MEMORY_CACHE.isInitialized) return;
 
-    try {
-        console.log("Initializing Database...");
-        let cases = await idbGetAll<LegalCase>(STORE_CASES);
-        
-        if (cases.length === 0) {
-            console.log("Database empty. Seeding...");
-            // Seed DB
-            for (const c of SEED_CASES) {
-                await idbPut(STORE_CASES, c);
+    // Failsafe Race: IDB Init vs Timeout
+    // If IDB takes more than 3 seconds (e.g. security block), fallback to seed data in memory.
+    const timeoutPromise = new Promise<void>((resolve) => {
+        setTimeout(() => {
+            console.warn("DB Init timed out. Fallback to Memory Mode.");
+            if (!MEMORY_CACHE.isInitialized) {
+                MEMORY_CACHE.cases = SEED_CASES;
+                MEMORY_CACHE.isInitialized = true;
             }
-            cases = SEED_CASES;
+            resolve();
+        }, 3000);
+    });
+
+    const initPromise = (async () => {
+        try {
+            console.log("Initializing Database...");
+            let cases = await idbGetAll<LegalCase>(STORE_CASES);
+            
+            if (cases.length === 0) {
+                console.log("Database empty. Seeding in batch...");
+                // Optimized batch seeding
+                await idbBatchPut(STORE_CASES, SEED_CASES);
+                cases = SEED_CASES;
+            }
+            
+            MEMORY_CACHE.cases = cases;
+            MEMORY_CACHE.isInitialized = true;
+            console.log(`Database Initialized. Loaded ${cases.length} cases.`);
+        } catch (error) {
+            console.error("Database initialization failed:", error);
+            MEMORY_CACHE.cases = SEED_CASES;
+            MEMORY_CACHE.isInitialized = true;
         }
-        
-        MEMORY_CACHE.cases = cases;
-        MEMORY_CACHE.isInitialized = true;
-        console.log(`Database Initialized. Loaded ${cases.length} cases into memory.`);
-    } catch (error) {
-        console.error("Database initialization failed:", error);
-        // Fallback to seeds if IDB fails completely
-        MEMORY_CACHE.cases = SEED_CASES; 
-    }
+    })();
+
+    return Promise.race([initPromise, timeoutPromise]);
 };
 
 // --- CASES (SYNC ACCESS VIA MEMORY CACHE) ---
 
 export const getCases = (): LegalCase[] => {
-  // If not initialized yet (rare in App flow), return what we have (likely empty or seeds)
-  return MEMORY_CACHE.cases;
+  return MEMORY_CACHE.cases.length > 0 ? MEMORY_CACHE.cases : SEED_CASES;
 };
 
 export const saveCase = (newCase: LegalCase) => {
@@ -755,7 +802,7 @@ export const clearDatabase = () => {
       const tx = db.transaction(STORE_CASES, 'readwrite');
       tx.objectStore(STORE_CASES).clear();
       // Re-seed
-      SEED_CASES.forEach(c => idbPut(STORE_CASES, c));
+      idbBatchPut(STORE_CASES, SEED_CASES);
   });
 };
 
