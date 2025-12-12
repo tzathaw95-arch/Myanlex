@@ -3,7 +3,39 @@ import React, { useState, useEffect } from 'react';
 import { LegalCase, User } from '../types';
 import { analyzeMultipleCases, AnalysisMode } from '../services/geminiService';
 import { ArrowLeft, Sparkles, Scale, AlertTriangle, ArrowRightLeft, BrainCircuit, MessageSquare } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+
+// Reusing SimpleMarkdown component locally to avoid duplicate code issues if utility file not present
+const SimpleMarkdown: React.FC<{ children: string }> = ({ children }) => {
+  if (!children) return null;
+  const lines = children.split('\n');
+  return (
+    <div className="space-y-4">
+      {lines.map((line, i) => {
+        if (!line.trim()) return <br key={i} />;
+        if (line.startsWith('### ')) return <h3 key={i} className="text-lg font-bold mt-4 text-slate-900">{line.replace('### ', '')}</h3>;
+        if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-bold mt-6 text-slate-900">{line.replace('## ', '')}</h2>;
+        if (line.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold mt-8 text-slate-900">{line.replace('# ', '')}</h1>;
+        if (line.trim().startsWith('* ') || line.trim().startsWith('- ')) {
+            return (
+                <div key={i} className="flex gap-2 ml-4">
+                    <span className="text-slate-400">•</span>
+                    <span className="text-slate-800">{line.replace(/^[\*\-]\s/, '')}</span>
+                </div>
+            );
+        }
+        const parts = line.split(/(\*\*.*?\*\*)/g);
+        return (
+            <p key={i} className="text-justify leading-loose text-slate-800">
+                {parts.map((part, j) => {
+                    if (part.startsWith('**') && part.endsWith('**')) return <strong key={j} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
+                    return part;
+                })}
+            </p>
+        );
+      })}
+    </div>
+  );
+};
 
 interface MultiAnalysisViewProps {
   cases: LegalCase[];
@@ -182,7 +214,7 @@ export const MultiAnalysisView: React.FC<MultiAnalysisViewProps> = ({ cases, mod
                           </div>
                       ) : (
                           <div className="prose prose-slate prose-lg max-w-none text-slate-800 font-myanmar leading-loose text-justify">
-                              <ReactMarkdown>{analysisResult}</ReactMarkdown>
+                              <SimpleMarkdown>{analysisResult}</SimpleMarkdown>
                           </div>
                       )}
                   </div>

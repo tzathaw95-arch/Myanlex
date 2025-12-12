@@ -4,9 +4,49 @@ import { LegalCase, CaseBrief, User, Organization } from '../types';
 import { askLegalAssistant } from '../services/geminiService';
 import { getOrganizationById, toggleSharedCase } from '../services/db';
 import { ArrowLeft, Printer, Share2, Download, MessageSquare, Sparkles, BookOpen, Scale, FileText, Bookmark, Lock, AlertTriangle, Building2, Check } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
 import { canGenerateBrief, incrementBriefUsage } from '../services/auth';
 import { useLanguage } from '../contexts/LanguageContext';
+
+// Safe Internal Markdown Renderer to avoid dependency issues
+const SimpleMarkdown: React.FC<{ children: string }> = ({ children }) => {
+  if (!children) return null;
+  const lines = children.split('\n');
+  return (
+    <div className="space-y-4">
+      {lines.map((line, i) => {
+        if (!line.trim()) return <br key={i} />;
+        
+        // Headers
+        if (line.startsWith('### ')) return <h3 key={i} className="text-lg font-bold mt-4 text-slate-900">{line.replace('### ', '')}</h3>;
+        if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-bold mt-6 text-slate-900">{line.replace('## ', '')}</h2>;
+        if (line.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold mt-8 text-slate-900">{line.replace('# ', '')}</h1>;
+        
+        // Lists
+        if (line.trim().startsWith('* ') || line.trim().startsWith('- ')) {
+            return (
+                <div key={i} className="flex gap-2 ml-4">
+                    <span className="text-slate-400">•</span>
+                    <span className="text-slate-800">{line.replace(/^[\*\-]\s/, '')}</span>
+                </div>
+            );
+        }
+
+        // Bold parsing
+        const parts = line.split(/(\*\*.*?\*\*)/g);
+        return (
+            <p key={i} className="text-justify leading-loose text-slate-800">
+                {parts.map((part, j) => {
+                    if (part.startsWith('**') && part.endsWith('**')) {
+                        return <strong key={j} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
+                    }
+                    return part;
+                })}
+            </p>
+        );
+      })}
+    </div>
+  );
+};
 
 interface CaseDetailProps {
   data: LegalCase;
@@ -221,24 +261,9 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ data, onBack, user, onTo
                                     <h3 className="text-xl font-bold font-serif text-slate-900">{t('judgment_text')}</h3>
                                     <div className="text-xs text-gray-400 uppercase tracking-widest">{t('original_record')}</div>
                                 </div>
-                                {/* MARKDOWN RENDERER FOR JUDGMENT TEXT */}
+                                {/* SIMPLE MARKDOWN RENDERER FOR JUDGMENT TEXT */}
                                 <div className="prose prose-slate prose-lg max-w-none text-slate-800 font-myanmar leading-loose text-justify">
-                                    <ReactMarkdown
-                                        components={{
-                                            // Custom renderers for headers to center them
-                                            h1: ({node, ...props}) => <h1 className="text-center font-bold text-2xl mb-6 mt-8" {...props} />,
-                                            h2: ({node, ...props}) => <h2 className="text-center font-bold text-xl mb-5 mt-6" {...props} />,
-                                            h3: ({node, ...props}) => <h3 className="text-center font-bold text-lg mb-4 mt-6" {...props} />,
-                                            h4: ({node, ...props}) => <h4 className="text-center font-bold text-base mb-4 mt-6 uppercase tracking-wider" {...props} />,
-                                            h5: ({node, ...props}) => <h5 className="text-center font-bold text-base mb-3 mt-4" {...props} />,
-                                            // Ensure paragraphs have proper spacing and justification
-                                            p: ({node, ...props}) => <p className="mb-6 text-justify leading-loose" {...props} />,
-                                            // Style bold text
-                                            strong: ({node, ...props}) => <strong className="font-bold text-slate-900" {...props} />,
-                                        }}
-                                    >
-                                        {data.content}
-                                    </ReactMarkdown>
+                                    <SimpleMarkdown>{data.content}</SimpleMarkdown>
                                 </div>
                             </div>
                         )}
@@ -277,7 +302,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ data, onBack, user, onTo
                                 <div className="flex-1 overflow-y-auto mb-6 border border-gray-100 rounded-xl p-6 bg-slate-50 font-myanmar shadow-inner">
                                     {chatResponse ? (
                                         <div className="prose max-w-none text-justify leading-loose">
-                                            <ReactMarkdown>{chatResponse}</ReactMarkdown>
+                                            <SimpleMarkdown>{chatResponse}</SimpleMarkdown>
                                         </div>
                                     ) : (
                                         <div className="text-center text-gray-400 mt-20">
