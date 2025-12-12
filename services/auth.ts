@@ -1,5 +1,6 @@
+
 import { User } from "../types";
-import { getUsers, saveUser, getUserByEmail } from "./db";
+import { getUsers, saveUser, getUserByEmail, createOrganizationForUser } from "./db";
 
 const CURRENT_USER_KEY = "myanlex_current_user";
 const GUEST_BRIEF_USAGE_KEY = "myanlex_guest_brief_usage";
@@ -32,7 +33,21 @@ export const logout = () => {
   localStorage.removeItem(CURRENT_USER_KEY);
 };
 
-export const registerTrial = (email: string, pass: string, name: string): { success: boolean; user?: User; error?: string } => {
+// NEW: Simulate Password Recovery
+export const recoverPassword = (email: string): { success: boolean; message: string } => {
+  const user = getUserByEmail(email);
+  if (!user) {
+    // Security practice: Don't reveal if user exists or not, but for this demo we might want to be specific or generic.
+    // We'll return success to simulate the email being queued regardless.
+    return { success: true, message: "If an account exists, a recovery link has been sent." };
+  }
+  
+  // In a real app, this would call an API to send an SMTP email.
+  console.log(`[SIMULATION] Recovery email sent to ${email} with reset link.`);
+  return { success: true, message: `Recovery link sent to ${email}. Please check your inbox.` };
+};
+
+export const registerTrial = (email: string, pass: string, name: string, firmName?: string): { success: boolean; user?: User; error?: string } => {
   if (getUserByEmail(email)) {
     return { success: false, error: "Email already exists." };
   }
@@ -41,7 +56,7 @@ export const registerTrial = (email: string, pass: string, name: string): { succ
   const now = new Date();
   const twoWeeksLater = new Date(now.getTime() + (14 * 24 * 60 * 60 * 1000));
 
-  const newUser: User = {
+  let newUser: User = {
     id: `user-${Date.now()}`,
     email,
     password: pass,
@@ -51,10 +66,20 @@ export const registerTrial = (email: string, pass: string, name: string): { succ
     isBanned: false,
     subscriptionExpiry: twoWeeksLater.toISOString(),
     createdAt: now.toISOString(),
-    savedCaseIds: []
+    savedCaseIds: [],
+    folders: []
   };
 
   saveUser(newUser);
+
+  // Handle Firm Creation Logic
+  if (firmName) {
+      newUser = createOrganizationForUser(newUser, firmName);
+  }
+
+  // Simulation of Welcome Email
+  console.log(`[SIMULATION] Welcome email sent to ${email}.`);
+
   localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
   return { success: true, user: newUser };
 };

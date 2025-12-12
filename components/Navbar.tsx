@@ -1,9 +1,13 @@
+
 import React from 'react';
-import { Scale, Shield, User as UserIcon, Search, LogOut, CreditCard, Bell, HelpCircle, Book, Bookmark } from 'lucide-react';
+import { Scale, Shield, User as UserIcon, Search, LogOut, CreditCard, Bell, HelpCircle, Book, Bookmark, Building2, ArrowLeft, Languages } from 'lucide-react';
 import { User } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface NavbarProps {
   onNavigate: (view: any) => void;
+  onBack: () => void;
+  canGoBack: boolean;
   isAdmin: boolean;
   toggleAdmin: () => void;
   user: User | null;
@@ -15,32 +19,63 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ 
-  onNavigate, isAdmin, toggleAdmin, user, onLogout, 
+  onNavigate, onBack, canGoBack, isAdmin, toggleAdmin, user, onLogout, 
   onShowPricing, onShowNotifications, onShowSupport, hasNotifications 
 }) => {
+  const { language, setLanguage, t } = useLanguage();
+
   return (
-    <nav className="bg-slate-900 border-b border-white/10 sticky top-0 z-50 backdrop-blur-md bg-slate-900/95">
+    <nav className="bg-slate-900 border-b border-white/10 sticky top-0 z-50 backdrop-blur-md bg-slate-900/95 font-myanmar">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-18 py-3">
-          <div className="flex items-center cursor-pointer group" onClick={() => onNavigate('HOME')}>
-            <div className="bg-white/5 p-2 rounded-lg border border-white/10 mr-3 group-hover:bg-white/10 transition">
-                <Scale className="h-6 w-6 text-gold-400" />
-            </div>
-            <div className="flex flex-col justify-center">
-              <span className="font-serif text-xl font-bold tracking-wide text-white">MYANLEX</span>
-              <span className="text-[10px] text-gold-400/80 uppercase tracking-[0.2em] font-medium">Legal Intelligence</span>
+          <div className="flex items-center">
+            {canGoBack && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); onBack(); }}
+                className="mr-3 p-1.5 rounded-full bg-slate-800 text-gray-300 hover:text-white hover:bg-slate-700 transition"
+                title="Go Back"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+            )}
+            
+            <div className="flex items-center cursor-pointer group" onClick={() => onNavigate('HOME')}>
+              <div className="bg-white/5 p-2 rounded-lg border border-white/10 mr-3 group-hover:bg-white/10 transition">
+                  <Scale className="h-6 w-6 text-gold-400" />
+              </div>
+              <div className="flex flex-col justify-center">
+                <span className="font-serif text-xl font-bold tracking-wide text-white">MYANLEX</span>
+                <span className="text-[10px] text-gold-400/80 uppercase tracking-[0.2em] font-medium">Legal Intelligence</span>
+              </div>
             </div>
           </div>
           
           <div className="flex items-center space-x-2 md:space-x-4">
-            <NavButton onClick={() => onNavigate('SEARCH')} icon={<Search />} label="Case Law" />
-            <NavButton onClick={() => onNavigate('RESOURCES')} icon={<Book />} label="Resources" />
+            <NavButton onClick={() => onNavigate('SEARCH')} icon={<Search />} label={t('nav_cases')} />
+            <NavButton onClick={() => onNavigate('RESOURCES')} icon={<Book />} label={t('nav_resources')} />
+            
             {user && (
-                <NavButton onClick={() => onNavigate('SAVED')} icon={<Bookmark />} label="Saved" />
+                <NavButton onClick={() => onNavigate('SAVED')} icon={<Bookmark />} label={t('nav_saved')} />
             )}
-            <NavButton onClick={onShowPricing} icon={<CreditCard />} label="Pricing" />
+            
+            {/* Team Button */}
+            {user?.organizationId && (
+               <NavButton onClick={() => onNavigate('TEAM')} icon={<Building2 />} label={t('nav_firm')} />
+            )}
+
+            <NavButton onClick={onShowPricing} icon={<CreditCard />} label={t('nav_pricing')} />
 
             <div className="h-6 w-px bg-white/10 mx-2"></div>
+
+            {/* Language Switcher */}
+            <button 
+              onClick={() => setLanguage(language === 'en' ? 'mm' : 'en')} 
+              className="relative text-gray-400 hover:text-gold-400 transition p-2 rounded-full hover:bg-white/5 flex items-center gap-1"
+              title="Switch Language"
+            >
+              <Languages className="h-5 w-5" />
+              <span className="text-xs font-bold uppercase">{language}</span>
+            </button>
 
             {/* Notification Bell */}
             <button 
@@ -70,7 +105,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <div className="flex flex-col text-right hidden sm:block">
                   <span className="text-sm font-semibold text-white leading-none mb-1">{user.name}</span>
                   <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-white/10 text-gold-400 inline-block ml-auto">
-                    {user.role === 'ADMIN' ? 'Admin' : user.isTrial ? 'Trial' : 'Premium'}
+                    {user.role === 'ADMIN' ? 'Admin' : user.organizationId ? 'Firm' : user.isTrial ? 'Trial' : 'Premium'}
                   </span>
                 </div>
                 
@@ -97,7 +132,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={toggleAdmin} // Triggers login
                 className="flex items-center gap-2 px-5 py-2 rounded-lg font-semibold text-sm text-slate-900 bg-gold-400 hover:bg-gold-500 transition shadow-lg shadow-gold-500/20"
               >
-                <UserIcon className="h-4 w-4" /> <span className="hidden sm:inline">Member Login</span>
+                <UserIcon className="h-4 w-4" /> <span className="hidden sm:inline">{t('nav_login')}</span>
               </button>
             )}
           </div>
@@ -110,6 +145,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 const NavButton = ({ onClick, icon, label }: { onClick: () => void, icon: any, label: string }) => (
     <button onClick={onClick} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition">
         {React.cloneElement(icon, { className: "h-4 w-4 text-gold-500/80" })}
-        <span className="hidden md:inline">{label}</span>
+        <span className="hidden md:inline font-myanmar">{label}</span>
     </button>
 );

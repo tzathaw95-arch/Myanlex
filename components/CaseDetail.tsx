@@ -1,9 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
-import { LegalCase, CaseBrief, User } from '../types';
-import { generateCaseBrief, askLegalAssistant } from '../services/geminiService';
-import { ArrowLeft, Printer, Share2, Download, MessageSquare, Sparkles, BookOpen, Scale, FileText, Bookmark, Lock, AlertTriangle } from 'lucide-react';
+import { LegalCase, CaseBrief, User, Organization } from '../types';
+import { askLegalAssistant } from '../services/geminiService';
+import { getOrganizationById, toggleSharedCase } from '../services/db';
+import { ArrowLeft, Printer, Share2, Download, MessageSquare, Sparkles, BookOpen, Scale, FileText, Bookmark, Lock, AlertTriangle, Building2, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { canGenerateBrief, incrementBriefUsage } from '../services/auth';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface CaseDetailProps {
   data: LegalCase;
@@ -16,48 +19,57 @@ interface CaseDetailProps {
 type Tab = 'FULL_TEXT' | 'BRIEF' | 'AI_ANALYSIS' | 'RELATED';
 
 export const CaseDetail: React.FC<CaseDetailProps> = ({ data, onBack, user, onToggleSave, onShowRegister }) => {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<Tab>('FULL_TEXT');
-  const [brief, setBrief] = useState<CaseBrief | null>(null);
-  const [loadingBrief, setLoadingBrief] = useState(false);
+  const [brief, setBrief] = useState<CaseBrief | undefined>(data.brief); // Load from DB
   const [chatQuery, setChatQuery] = useState('');
   const [chatResponse, setChatResponse] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [limitError, setLimitError] = useState('');
+  
+  // Team Sharing
+  const [org, setOrg] = useState<Organization | undefined>(undefined);
+  const [isSharedWithTeam, setIsSharedWithTeam] = useState(false);
 
-  const isSaved = user?.savedCaseIds?.includes(data.id);
+  // Check if saved in ANY folder
+  const isSaved = user && (user.savedCaseIds?.includes(data.id) || user.folders?.some(f => f.caseIds.includes(data.id)));
+
+  useEffect(() => {
+    if (user?.organizationId) {
+      const organization = getOrganizationById(user.organizationId);
+      setOrg(organization);
+      if (organization?.sharedCaseIds?.includes(data.id)) {
+        setIsSharedWithTeam(true);
+      }
+    }
+  }, [user, data.id]);
+
+  const handleTeamShare = () => {
+    if (!org) return;
+    const updatedOrg = toggleSharedCase(org.id, data.id);
+    if (updatedOrg) {
+      setIsSharedWithTeam(updatedOrg.sharedCaseIds.includes(data.id));
+    }
+  };
 
   // Handle Tab Switching with Limit Logic
   const handleTabChange = (tab: Tab) => {
       if (tab === 'BRIEF') {
-          // Check limits
-          if (!brief) {
-              const check = canGenerateBrief(user);
-              if (!check.allowed) {
-                  setLimitError(check.reason === "GUEST_LIMIT_REACHED" 
-                      ? "Guest Limit Reached: 1 Free Brief Per Month. Please register for unlimited access." 
-                      : "Subscription Expired.");
-                  // Force register modal if guest limit reached
-                  if (check.reason === "GUEST_LIMIT_REACHED") onShowRegister();
-                  return;
-              }
+          // Check limits if brief is available (just viewing access control)
+          // Since brief is pre-computed, we mainly check if user *can view* it
+          const check = canGenerateBrief(user);
+          if (!check.allowed) {
+                setLimitError(check.reason === "GUEST_LIMIT_REACHED" 
+                    ? "Guest Limit Reached: 1 Free Brief Per Month. Please register for unlimited access." 
+                    : "Subscription Expired.");
+                // Force register modal if guest limit reached
+                if (check.reason === "GUEST_LIMIT_REACHED") onShowRegister();
+                return;
           }
       }
       setActiveTab(tab);
       setLimitError('');
   };
-
-  useEffect(() => {
-    if (activeTab === 'BRIEF' && !brief && !loadingBrief && !limitError) {
-      setLoadingBrief(true);
-      generateCaseBrief(data.content)
-        .then((result) => {
-            setBrief(result);
-            incrementBriefUsage(user);
-        })
-        .catch(console.error)
-        .finally(() => setLoadingBrief(false));
-    }
-  }, [activeTab, brief, data.content, loadingBrief, limitError, user]);
 
   const handleChat = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,26 +93,38 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ data, onBack, user, onTo
   };
 
   return (
-    <div className="bg-paper min-h-screen pb-20">
+    <div className="bg-paper min-h-screen pb-20 font-myanmar">
       {/* Header Bar */}
       <div className="bg-white border-b border-gray-200 sticky top-18 z-40 px-6 py-4 shadow-sm flex justify-between items-center">
         <button onClick={onBack} className="group flex items-center text-slate-500 hover:text-slate-900 font-medium text-sm transition">
           <div className="bg-gray-100 p-1.5 rounded-full mr-2 group-hover:bg-slate-200 transition">
              <ArrowLeft className="h-4 w-4" /> 
           </div>
-          Back to Results
+          {t('back_results')}
         </button>
         <div className="flex gap-3">
+          
+          {org && (
+            <button 
+               onClick={handleTeamShare}
+               className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wide rounded-lg border transition ${isSharedWithTeam ? 'bg-slate-100 text-slate-800 border-slate-300' : 'text-slate-600 hover:text-slate-900 hover:bg-gray-100 border-gray-200'}`}
+               title="Share to Firm Library"
+            >
+               {isSharedWithTeam ? <Check className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
+               {isSharedWithTeam ? t('shared_firm') : t('share_firm')}
+            </button>
+          )}
+
           <button 
              onClick={() => onToggleSave(data.id)}
              className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wide rounded-lg border transition ${isSaved ? 'bg-gold-50 text-gold-700 border-gold-200' : 'text-slate-600 hover:text-slate-900 hover:bg-gray-100 border-gray-200'}`}
           >
              <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-gold-700' : ''}`} />
-             {isSaved ? 'Saved' : 'Save Case'}
+             {isSaved ? t('saved') : t('save_case')}
           </button>
-          <ActionButton icon={<Printer />} label="Print" />
-          <ActionButton icon={<Download />} label="Download PDF" />
-          <ActionButton icon={<Share2 />} label="Share" />
+          <ActionButton icon={<Printer />} label={t('print')} />
+          <ActionButton icon={<Download />} label={t('download')} />
+          <ActionButton icon={<Share2 />} label={t('share')} />
         </div>
       </div>
 
@@ -137,8 +161,9 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ data, onBack, user, onTo
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 border-t border-gray-100 pt-8">
             <InfoRow label="Court" value={data.court} />
             <InfoRow label="Case Type" value={data.caseType} />
-            <InfoRow label="Judges" value={data.judges.join(', ')} />
-            <InfoRow label="Parties" value={`${data.parties.plaintiff || 'N/A'} vs ${data.parties.defendant || 'N/A'}`} />
+            {/* SAFEGUARD: Handle undefined judges or parties */}
+            <InfoRow label="Judges" value={data.judges && data.judges.length > 0 ? data.judges.join(', ') : 'N/A'} />
+            <InfoRow label="Parties" value={`${data.parties?.plaintiff || 'N/A'} vs ${data.parties?.defendant || 'N/A'}`} />
           </div>
         </div>
 
@@ -148,12 +173,12 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ data, onBack, user, onTo
             {/* Left Tabs / Navigation */}
             <div className="w-full lg:w-64 flex-shrink-0">
                 <div className="sticky top-32 space-y-2 bg-white p-2 rounded-xl border border-gray-200 shadow-sm">
-                    <TabButton active={activeTab === 'FULL_TEXT'} onClick={() => handleTabChange('FULL_TEXT')} label="Full Judgment" icon={<FileText />} />
-                    <TabButton active={activeTab === 'BRIEF'} onClick={() => handleTabChange('BRIEF')} label="AI Brief Analysis" icon={<Scale />} />
+                    <TabButton active={activeTab === 'FULL_TEXT'} onClick={() => handleTabChange('FULL_TEXT')} label={t('judgment_text')} icon={<FileText />} />
+                    <TabButton active={activeTab === 'BRIEF'} onClick={() => handleTabChange('BRIEF')} label={t('case_brief')} icon={<Scale />} />
                     <TabButton 
                         active={activeTab === 'AI_ANALYSIS'} 
                         onClick={() => user ? handleTabChange('AI_ANALYSIS') : onShowRegister()} 
-                        label="AI Legal Assistant" 
+                        label={t('ai_assistant')}
                         icon={user ? <Sparkles /> : <Lock />} 
                     />
                 </div>
@@ -167,10 +192,9 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ data, onBack, user, onTo
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 flex gap-3 items-start animate-in fade-in slide-in-from-top-2">
                         <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                         <div>
-                            <h4 className="text-sm font-bold text-amber-900">AI-Generated Content Warning</h4>
+                            <h4 className="text-sm font-bold text-amber-900">{t('ai_warning_title')}</h4>
                             <p className="text-sm text-amber-800 mt-1 leading-relaxed">
-                            This content is generated by an Artificial Intelligence model. While optimized for Myanmar legal data, it may contain errors, hallucinations, or inaccuracies. 
-                            Professional verification with the <button onClick={() => handleTabChange('FULL_TEXT')} className="underline font-bold hover:text-amber-950">Original Judgment Text</button> is required before legal use.
+                            {t('ai_warning_text')}
                             </p>
                         </div>
                     </div>
@@ -195,11 +219,27 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ data, onBack, user, onTo
                         {activeTab === 'FULL_TEXT' && (
                             <div>
                                 <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
-                                    <h3 className="text-xl font-bold font-serif text-slate-900">Judgment Text</h3>
-                                    <div className="text-xs text-gray-400 uppercase tracking-widest">Original Record</div>
+                                    <h3 className="text-xl font-bold font-serif text-slate-900">{t('judgment_text')}</h3>
+                                    <div className="text-xs text-gray-400 uppercase tracking-widest">{t('original_record')}</div>
                                 </div>
+                                {/* MARKDOWN RENDERER FOR JUDGMENT TEXT */}
                                 <div className="prose prose-slate prose-lg max-w-none text-slate-800 font-myanmar leading-loose text-justify">
-                                    <div className="whitespace-pre-wrap">{data.content}</div>
+                                    <ReactMarkdown
+                                        components={{
+                                            // Custom renderers for headers to center them
+                                            h1: ({node, ...props}) => <h1 className="text-center font-bold text-2xl mb-6 mt-8" {...props} />,
+                                            h2: ({node, ...props}) => <h2 className="text-center font-bold text-xl mb-5 mt-6" {...props} />,
+                                            h3: ({node, ...props}) => <h3 className="text-center font-bold text-lg mb-4 mt-6" {...props} />,
+                                            h4: ({node, ...props}) => <h4 className="text-center font-bold text-base mb-4 mt-6 uppercase tracking-wider" {...props} />,
+                                            h5: ({node, ...props}) => <h5 className="text-center font-bold text-base mb-3 mt-4" {...props} />,
+                                            // Ensure paragraphs have proper spacing and justification
+                                            p: ({node, ...props}) => <p className="mb-6 text-justify leading-loose" {...props} />,
+                                            // Style bold text
+                                            strong: ({node, ...props}) => <strong className="font-bold text-slate-900" {...props} />,
+                                        }}
+                                    >
+                                        {data.content}
+                                    </ReactMarkdown>
                                 </div>
                             </div>
                         )}
@@ -208,30 +248,22 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ data, onBack, user, onTo
                             <div>
                                 <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
                                     <h3 className="text-xl font-bold font-serif text-slate-900 flex items-center gap-2">
-                                        <Scale className="text-gold-500 w-5 h-5" /> AI Generated Brief
+                                        <Scale className="text-gold-500 w-5 h-5" /> {t('case_brief')}
                                     </h3>
-                                    <div className="bg-gold-50 text-gold-700 text-[10px] font-bold px-2 py-1 rounded border border-gold-200">BETA</div>
+                                    <div className="bg-gold-50 text-gold-700 text-[10px] font-bold px-2 py-1 rounded border border-gold-200">{t('ai_generated')}</div>
                                 </div>
-                                {loadingBrief ? (
-                                    <div className="flex flex-col items-center justify-center py-24">
-                                        <div className="relative">
-                                            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-gold-500"></div>
-                                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                                                <Sparkles className="w-6 h-6 text-gold-400" />
-                                            </div>
-                                        </div>
-                                        <p className="mt-6 text-slate-500 font-medium animate-pulse">Analyzing legal precedents & facts...</p>
-                                    </div>
-                                ) : brief ? (
-                                    <div className="space-y-8 font-myanmar">
-                                        <BriefSection title="Facts of the Case" content={brief.facts} />
-                                        <BriefSection title="Legal Issues" content={brief.issues} isList />
-                                        <BriefSection title="Court's Holding" content={brief.holding} highlight />
-                                        <BriefSection title="Rationale & Reasoning" content={brief.reasoning} />
-                                        <BriefSection title="Key Principles Cited" content={brief.principles} isList />
+                                {brief ? (
+                                    <div className="space-y-8 font-myanmar text-justify">
+                                        <BriefSection title={t('facts')} content={brief.facts} />
+                                        <BriefSection title={t('issues')} content={brief.issues} isList />
+                                        <BriefSection title={t('holding')} content={brief.holding} highlight />
+                                        <BriefSection title={t('reasoning')} content={brief.reasoning} />
+                                        <BriefSection title={t('principles')} content={brief.principles} isList />
                                     </div>
                                 ) : (
-                                    <div className="p-4 bg-red-50 text-red-600 rounded">Failed to load brief.</div>
+                                    <div className="p-4 bg-gray-50 text-gray-600 rounded border border-dashed border-gray-300 text-center">
+                                        No brief available for this case. This might be an older record.
+                                    </div>
                                 )}
                             </div>
                         )}
@@ -240,12 +272,12 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ data, onBack, user, onTo
                             <div className="flex flex-col h-[600px]">
                                 <div className="flex items-center justify-between mb-6">
                                     <h3 className="text-xl font-bold font-serif text-slate-900 flex items-center gap-2">
-                                        <Sparkles className="text-blue-500 w-5 h-5" /> Interactive Research
+                                        <Sparkles className="text-blue-500 w-5 h-5" /> {t('ai_assistant')}
                                     </h3>
                                 </div>
                                 <div className="flex-1 overflow-y-auto mb-6 border border-gray-100 rounded-xl p-6 bg-slate-50 font-myanmar shadow-inner">
                                     {chatResponse ? (
-                                        <div className="prose max-w-none">
+                                        <div className="prose max-w-none text-justify leading-loose">
                                             <ReactMarkdown>{chatResponse}</ReactMarkdown>
                                         </div>
                                     ) : (
@@ -263,7 +295,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ data, onBack, user, onTo
                                         type="text"
                                         value={chatQuery}
                                         onChange={(e) => setChatQuery(e.target.value)}
-                                        placeholder="Ask a legal question about this document..."
+                                        placeholder={t('chat_placeholder')}
                                         className="w-full border border-gray-300 rounded-xl pl-6 pr-32 py-4 focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 outline-none font-myanmar shadow-sm text-slate-800"
                                     />
                                     <button 
@@ -271,7 +303,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ data, onBack, user, onTo
                                         disabled={chatLoading}
                                         className="absolute right-2 top-2 bottom-2 bg-slate-900 text-white px-6 rounded-lg font-bold hover:bg-slate-800 disabled:opacity-70 transition-colors"
                                     >
-                                        {chatLoading ? 'Thinking...' : 'Analyze'}
+                                        {chatLoading ? t('chat_thinking') : t('chat_analyze')}
                                     </button>
                                 </form>
                             </div>
@@ -315,7 +347,7 @@ const BriefSection = ({ title, content, isList = false, highlight = false }: { t
   <div className={`p-6 rounded-xl border ${highlight ? 'bg-amber-50/50 border-amber-200' : 'bg-gray-50/50 border-gray-100'}`}>
     <h3 className="text-lg font-bold font-serif text-slate-900 mb-4 pb-2 border-b border-gray-200/50">{title}</h3>
     {isList && Array.isArray(content) ? (
-      <ul className="list-disc list-outside ml-5 space-y-3 text-slate-700 leading-relaxed">
+      <ul className="list-disc list-outside ml-5 space-y-3 text-slate-700 leading-relaxed text-justify">
         {content.map((item, i) => <li key={i}>{item}</li>)}
       </ul>
     ) : (

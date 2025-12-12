@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, CheckCircle, Smartphone, Tag, CreditCard, Crown, X } from 'lucide-react';
+import { ShieldAlert, CheckCircle, Smartphone, Tag, CreditCard, Crown, X, Building2 } from 'lucide-react';
 import { getConfig } from '../services/db';
 import { BillingConfig } from '../types';
 
@@ -24,7 +25,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900 bg-opacity-95 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in duration-300 my-8 relative">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in duration-300 my-8 relative">
         
         {!isExpired && (
           <button 
@@ -49,7 +50,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
             <>
               <Crown className="h-16 w-16 text-gold-500 mx-auto mb-4 relative z-10" />
               <h2 className="text-3xl font-serif font-bold text-white relative z-10">Membership Plans</h2>
-              <p className="text-gray-300 mt-2 relative z-10">Simple, transparent pricing for legal professionals.</p>
+              <p className="text-gray-300 mt-2 relative z-10">Simple, transparent pricing for legal professionals and firms.</p>
             </>
           )}
         </div>
@@ -58,15 +59,24 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
           
           {/* Pricing Tiers */}
           <div className="mb-10">
-             <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center justify-center gap-2">
-                <Tag className="h-5 w-5 text-gold-600" />
-                Select Your Plan
-             </h3>
-             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <PricingCard title="1 Month" price="20,000 MMK" />
-                <PricingCard title="3 Months" price="55,000 MMK" isPopular />
-                <PricingCard title="6 Months" price="100,000 MMK" />
-                <PricingCard title="1 Year" price="180,000 MMK" />
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                {config?.plans.map(plan => (
+                    <PricingCard 
+                        key={plan.id} 
+                        title={plan.title} 
+                        price={plan.price} 
+                        isPopular={plan.isPopular} 
+                    />
+                ))}
+                
+                {/* Enterprise Card */}
+                <div className="relative p-4 rounded-xl border-2 border-slate-900 bg-slate-900 text-white text-center flex flex-col justify-center cursor-default">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gold-500 text-slate-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">For Firms</div>
+                    <Building2 className="w-6 h-6 mx-auto text-gold-400 mb-2" />
+                    <div className="text-gray-300 text-sm font-medium mb-1">Team Access</div>
+                    <div className="font-bold text-lg mb-2">Custom</div>
+                    <div className="text-xs text-gray-400 leading-tight">Centralized Billing & Shared Library</div>
+                </div>
              </div>
           </div>
 
@@ -134,7 +144,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
                       </li>
                       <li className="flex gap-3">
                         <span className="bg-slate-200 text-slate-700 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 font-bold text-xs">4</span>
-                        <span>Admin will verify and activate your account instantly.</span>
+                        <span>For <strong>Team Plans</strong>, please call directly for setup.</span>
                       </li>
                     </ol>
                 </div>
@@ -164,7 +174,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
   );
 };
 
-const PricingCard = ({ title, price, isPopular }: { title: string, price: string, isPopular?: boolean }) => (
+const PricingCard: React.FC<{ title: string, price: string, isPopular?: boolean }> = ({ title, price, isPopular }) => (
     <div className={`relative p-4 rounded-xl border-2 text-center transition hover:shadow-md cursor-default ${isPopular ? 'border-gold-400 bg-gold-50/30' : 'border-gray-100 bg-white'}`}>
         {isPopular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gold-500 text-slate-900 text-[10px] font-bold px-2 py-0.5 rounded-full">MOST POPULAR</div>}
         <div className="text-gray-500 text-sm font-medium mb-1">{title}</div>

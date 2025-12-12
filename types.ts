@@ -1,3 +1,14 @@
+
+export type CitationStatus = 'GOOD_LAW' | 'DISTINGUISHED' | 'OVERRULED' | 'CAUTION';
+
+export interface CaseBrief {
+  facts: string;
+  issues: string[];
+  holding: string;
+  reasoning: string;
+  principles: string[];
+}
+
 export interface LegalCase {
   id: string;
   caseName: string; // Myanmar text
@@ -20,17 +31,19 @@ export interface LegalCase {
   sourcePdfName: string;
   extractionConfidence: number;
   extractedSuccessfully: boolean;
+  status: CitationStatus; // NEW: Lexis-style status
+  brief?: CaseBrief; // NEW: Pre-computed brief stored with case
 }
 
-export interface CaseBrief {
-  facts: string;
-  issues: string[];
-  holding: string;
-  reasoning: string;
-  principles: string[];
+export interface ClientFolder {
+  id: string;
+  name: string;
+  clientReference?: string;
+  dateCreated: string;
+  caseIds: string[];
 }
 
-export type ViewState = 'HOME' | 'SEARCH' | 'DETAIL' | 'ADMIN' | 'RESOURCES' | 'SAVED';
+export type ViewState = 'HOME' | 'SEARCH' | 'DETAIL' | 'ADMIN' | 'RESOURCES' | 'SAVED' | 'TEAM' | 'MULTI_ANALYSIS';
 
 export interface SearchFilters {
   query: string;
@@ -48,19 +61,39 @@ export interface UploadQueueItem {
   error?: string;
 }
 
-export type UserRole = 'ADMIN' | 'USER';
+export type UserRole = 'ADMIN' | 'EDITOR' | 'USER';
+
+export interface Organization {
+  id: string;
+  name: string;
+  adminUserId: string;
+  members: string[]; // List of User IDs
+  maxSeats: number;
+  sharedCaseIds: string[]; // Cases shared with the whole team
+  plan: 'TEAM_STARTER' | 'TEAM_ENTERPRISE';
+}
 
 export interface User {
   id: string;
   email: string;
-  password: string; // In a real app, this would be hashed
+  password: string; 
   name: string;
   role: UserRole;
-  subscriptionExpiry: string; // ISO Date string
+  subscriptionExpiry: string; 
   isTrial: boolean;
-  isBanned?: boolean; // For manual violations/terminations
+  isBanned?: boolean; 
   createdAt: string;
-  savedCaseIds: string[]; // List of IDs saved by user
+  folders: ClientFolder[]; // NEW: Replaces simple savedCaseIds for better organization
+  organizationId?: string; 
+  // Legacy support for migration, though we prefer folders now
+  savedCaseIds?: string[];
+}
+
+export interface PricingPlan {
+  id: string;
+  title: string;
+  price: string;
+  isPopular?: boolean;
 }
 
 export interface BillingConfig {
@@ -76,6 +109,7 @@ export interface BillingConfig {
     phone: string;
     email: string;
   };
+  plans: PricingPlan[];
 }
 
 export interface Announcement {
