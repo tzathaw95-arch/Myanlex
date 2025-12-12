@@ -1,15 +1,26 @@
+
 import React from 'react';
-import ReactDOM from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import App from './App';
 
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
-}
+const container = document.getElementById('root');
 
-const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+if (container) {
+  try {
+    const root = createRoot(container);
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
+  } catch (e) {
+    console.error("React Mount Error:", e);
+    const errDisplay = document.getElementById('error-display');
+    if (errDisplay) {
+        errDisplay.style.display = 'block';
+        errDisplay.innerHTML = "Critical Error: Failed to mount application. " + String(e);
+    }
+  }
+} else {
+  console.error("Root element not found");
+}
