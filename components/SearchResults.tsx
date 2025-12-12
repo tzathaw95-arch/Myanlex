@@ -113,9 +113,9 @@ const CaseCard: React.FC<CaseCardProps> = ({ c, saved, isSelected, onSelectCase,
                           <span className="text-gray-400">Court:</span> <span className="text-slate-800 font-myanmar">{c.court}</span>
                       </span>
                       <span className="flex items-center gap-1">
-                          <span className="text-gray-400">Date:</span> <span className="text-slate-800">{c.date || 'N/A'}</span>
+                          <span className="text-gray-400">Date:</span> <span className="text-slate-800">{c.date}</span>
                       </span>
-                      {c.judges && c.judges.length > 0 && (
+                      {c.judges.length > 0 && (
                           <span className="flex items-center gap-1">
                               <span className="text-gray-400">Judge:</span> <span className="text-slate-800 font-myanmar">{c.judges[0]}</span>
                           </span>
@@ -187,7 +187,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({ cases, query, onSe
     setAvailableCategories(Array.from(new Set([...defaults, ...categories])).sort());
 
     // Extract unique years
-    const years = Array.from(new Set(allCases.map(c => c.date ? c.date.substring(0, 4) : ''))).filter(y => y).sort((a, b) => b.localeCompare(a));
+    const years = Array.from(new Set(allCases.map(c => c.date.substring(0, 4)))).sort((a, b) => b.localeCompare(a));
     setAvailableYears(years);
 
   }, [cases]); // Re-run if data source changes
@@ -232,7 +232,6 @@ export const SearchResults: React.FC<SearchResultsProps> = ({ cases, query, onSe
 
         // Year Filter
         if (selectedYears.length > 0) {
-            if (!c.date) return false; // Skip if no date
             const year = parseInt(c.date.substring(0, 4));
             const matches = selectedYears.some(opt => {
                 if (opt.includes('-')) {

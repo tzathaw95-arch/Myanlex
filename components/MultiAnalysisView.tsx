@@ -105,7 +105,7 @@ export const MultiAnalysisView: React.FC<MultiAnalysisViewProps> = ({ cases, mod
                                   <div className="font-bold text-slate-800 mb-1">{c.caseName}</div>
                                   <div className="text-xs text-gray-500 flex justify-between">
                                       <span>{c.citation}</span>
-                                      <span>{c.date ? c.date.substring(0, 4) : 'N/A'}</span>
+                                      <span>{c.date.substring(0, 4)}</span>
                                   </div>
                               </div>
                           ))}

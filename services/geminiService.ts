@@ -138,14 +138,11 @@ export const extractCaseData = async (
     extractionDate: new Date().toISOString(),
     extractedSuccessfully: true,
     extractionConfidence: 95, 
-    headnotes: data.headnotes || [],
-    holding: data.brief?.holding || data.holding || "", 
-    legalIssues: data.brief?.issues || data.legalIssues || [],
+    headnotes: [],
+    holding: data.brief?.holding || "", 
+    legalIssues: data.brief?.issues || [],
     status: data.status || 'GOOD_LAW', 
-    ...data,
-    judges: data.judges || [], 
-    date: data.date || new Date().toISOString().split('T')[0],
-    parties: data.parties || { plaintiff: "N/A", defendant: "N/A" }
+    ...data
   };
 };
 
@@ -169,13 +166,11 @@ export const extractCaseFromImages = async (
       You are a Visual Legal OCR Engine.
       The images provided are pages of a Myanmar Court Judgment.
       
-      TASK:
-      1. **FULL OCR**: Perform rigorous OCR on all images to extract EVERY WORD of the judgment text.
-      2. **UNICODE**: Convert any Zawgyi encoding to Standard Myanmar Unicode.
-      3. **CONTENT**: Populate "cleanedContent" with the COMPLETE text of the judgment found in the images. Do NOT summarize or truncate the main content field.
-      4. **METADATA**: Extract the structured data fields (parties, judges, brief, etc.).
+      1. **OCR & TRANSLITERATE**: Read the visual text. It may be in standard Myanmar font or old typewriters.
+      2. **STRUCTURE**: Extract the legal case data.
+      3. **OUTPUT**: Return a JSON ARRAY of cases found (usually just 1, but maybe multiple).
       
-      Output JSON Array.
+      Ensure "cleanedContent" contains the FULL text you read from the images, converted to clean Unicode.
     `
   };
 
@@ -196,19 +191,16 @@ export const extractCaseFromImages = async (
   // Map raw JSON to LegalCase Objects
   return rawData.map((data: any, idx: number) => ({
     id: `case-vis-${Date.now()}-${idx}`,
-    content: data.cleanedContent || "OCR Failed: Text extracted from image was empty.",
+    content: data.cleanedContent || "Text extracted from image.",
     sourcePdfName: sourceFileName,
     extractionDate: new Date().toISOString(),
     extractedSuccessfully: true,
     extractionConfidence: 90, 
-    headnotes: data.headnotes || [],
-    holding: data.brief?.holding || data.holding || "", 
-    legalIssues: data.brief?.issues || data.legalIssues || [],
+    headnotes: [],
+    holding: data.brief?.holding || "", 
+    legalIssues: data.brief?.issues || [],
     status: data.status || 'GOOD_LAW', 
-    ...data,
-    judges: data.judges || [], 
-    date: data.date || new Date().toISOString().split('T')[0],
-    parties: data.parties || { plaintiff: "N/A", defendant: "N/A" }
+    ...data
   }));
 };
 
@@ -223,7 +215,7 @@ export const analyzeCitationNetwork = async (cases: LegalCase[]): Promise<{ id: 
     citation: c.citation,
     caseName: c.caseName,
     holding: c.holding.substring(0, 500), // Limit length
-    year: c.date ? c.date.substring(0, 4) : "Unknown" // Safety check
+    year: c.date.substring(0, 4)
   }));
 
   const ai = new GoogleGenAI({ apiKey: getApiKey() });

@@ -161,9 +161,8 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ data, onBack, user, onTo
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 border-t border-gray-100 pt-8">
             <InfoRow label="Court" value={data.court} />
             <InfoRow label="Case Type" value={data.caseType} />
-            {/* SAFEGUARD: Handle undefined judges or parties */}
-            <InfoRow label="Judges" value={data.judges && data.judges.length > 0 ? data.judges.join(', ') : 'N/A'} />
-            <InfoRow label="Parties" value={`${data.parties?.plaintiff || 'N/A'} vs ${data.parties?.defendant || 'N/A'}`} />
+            <InfoRow label="Judges" value={data.judges.join(', ')} />
+            <InfoRow label="Parties" value={`${data.parties.plaintiff || 'N/A'} vs ${data.parties.defendant || 'N/A'}`} />
           </div>
         </div>
 
